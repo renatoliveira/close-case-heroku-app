@@ -59,4 +59,4 @@ def close_case(org_id, record_id):
 if not os.environ.get('IS_HEROKU', None) and __name__ == '__main__':
     app.run(host='localhost', port=8080, debug=True)
 
-app.run(host='localhost', port=os.environ.get('PORT', default=5000), debug=False)
+app.run(host='0.0.0.0', port=os.environ.get('PORT', default=5000), debug=False)
