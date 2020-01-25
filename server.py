@@ -11,6 +11,8 @@ client_secret = os.environ.get('SF_CLIENT_SECRET')
 redirect_uri = os.environ.get('SF_CLIENT_REDIRECT_URI')
 salesforce_env = os.environ.get('SF_ENV', default='login')
 
+logging.basicConfig(level=logging.INFO)
+
 logging.info('Client ID: {}'.format(client_id))
 logging.info('Client Secret: {}'.format(client_secret))
 logging.info('Client Refresh Token: {}'.format(redirect_uri))
@@ -53,8 +55,8 @@ def close_case(org_id, record_id):
         'record_id': record_id
     }))
 
+
 if not os.environ.get('IS_HEROKU', None) and __name__ == '__main__':
-    logging.basicConfig(level=logging.INFO)
     app.run(host='localhost', port=8080, debug=True)
 
-app.run(host='localhost', port=os.environ.get('PORT', 5000), debug=False)
+app.run(host='localhost', port=os.environ.get('PORT', default=5000), debug=False)
