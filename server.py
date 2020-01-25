@@ -2,7 +2,8 @@ import os
 import logging
 import json
 
-from flask import Flask, Response, request, redirect
+from flask import Flask, request, redirect, jsonify
+import requests
 from requests_oauthlib import OAuth2Session
 
 
@@ -17,43 +18,96 @@ logging.info('Client ID: {}'.format(client_id))
 logging.info('Client Secret: {}'.format(client_secret))
 logging.info('Client Refresh Token: {}'.format(redirect_uri))
 
+ACCESS_TOKEN = None
+REFRESH_TOKEN = None
+INSTANCE_URL = None
+
 
 app = Flask(__name__)
 
 
-@app.route('/authorize', methods=['GET', 'POST'])
+@app.route('/authorize', methods=['GET'])
 def handle_authorization():
-    if request.method == 'POST':
-        logging.info('Handling POST from the authorization method')
+    logging.info('Handling GET from the authorization method')
 
-    elif request.method == 'GET':
-        logging.info('Handling GET from the authorization method')
+    oauth = OAuth2Session(
+        client_id=client_id,
+        redirect_uri=redirect_uri,
+        scope=['refresh_token', 'api', 'web']
+    )
 
-        oauth = OAuth2Session(
-            client_id=client_id,
-            redirect_uri=redirect_uri,
-            scope=['refresh_token', 'api', 'web']
-        )
+    auth_url, state = oauth.authorization_url(
+        'https://{}.salesforce.com/services/oauth2/authorize'.format(salesforce_env)
+    )
 
-        auth_url, state = oauth.authorization_url(
-            'https://{}.salesforce.com/services/oauth2/authorize'.format(salesforce_env)
-        )
+    logging.info(state)
+    logging.info(auth_url)
 
-        logging.info(state)
-        logging.info(auth_url)
+    return redirect(auth_url, code=302)
 
-        return redirect(auth_url, code=302)
+@app.route('/token', methods=['GET'])
+def handle_token():
+    global ACCESS_TOKEN
+    global REFRESH_TOKEN
+    global INSTANCE_URL
 
+    logging.info('Handling GET from the authorization method')
+
+    oauth = OAuth2Session(
+        client_id=client_id,
+        redirect_uri=redirect_uri,
+        scope=['refresh_token', 'api', 'web']
+    )
+
+    token = oauth.fetch_token(
+        'https://{}.salesforce.com/services/oauth2/token'.format(salesforce_env),
+        authorization_response=request.url.replace('http://', 'https://'),
+        client_secret=client_secret
+    )
+
+    ACCESS_TOKEN = token['access_token']
+    REFRESH_TOKEN = token['refresh_token']
+    INSTANCE_URL = token['instance_url']
+
+    logging.info('Instance URL is now recognized as {}'.format(INSTANCE_URL))
+
+    # Remove sensitive data, because we will return a JSON to the user
+    del token['access_token']
+    del token['refresh_token']
+
+    return jsonify(token)
 
 @app.route('/<org_id>/<record_id>')
 def close_case(org_id, record_id):
+    global INSTANCE_URL
+    global ACCESS_TOKEN
 
     logging.info('Closing case {} at org {}'.format(record_id, org_id))
+    logging.info(INSTANCE_URL)
 
-    return Response(json.dumps({
-        'org_id': org_id,
-        'record_id': record_id
-    }))
+    response = requests.post(
+        '{}/services/apexrest/closeCase'.format(INSTANCE_URL),
+        json={
+            'req': {
+                'caseId': record_id,
+                'reason': 'User clicked the button on the email.'
+            }
+        },
+        headers={
+            'Authorization': 'Bearer {token}'.format(token=ACCESS_TOKEN),
+            'Content-Type': 'application/json'
+        }
+    )
+
+    if response.status_code >= 300:
+
+        logging.error(response.json())
+
+        return jsonify({
+            'error': True
+        })
+
+    return redirect(response.json()['redirect_url'], code=302)
 
 
 if not os.environ.get('IS_HEROKU', None) and __name__ == '__main__':
