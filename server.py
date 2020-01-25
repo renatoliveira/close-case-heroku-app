@@ -9,6 +9,7 @@ from requests_oauthlib import OAuth2Session
 client_id = os.environ.get('SF_CLIENT_ID')
 client_secret = os.environ.get('SF_CLIENT_SECRET')
 redirect_uri = os.environ.get('SF_CLIENT_REDIRECT_URI')
+salesforce_env = os.environ.get('SF_ENV', default='login')
 
 logging.info('Client ID: {}'.format(client_id))
 logging.info('Client Secret: {}'.format(client_secret))
@@ -33,7 +34,7 @@ def handle_authorization():
         )
 
         auth_url, state = oauth.authorization_url(
-            'https://test.salesforce.com/services/oauth2/authorize'
+            'https://{}.salesforce.com/services/oauth2/authorize'.format(salesforce_env)
         )
 
         logging.info(state)
