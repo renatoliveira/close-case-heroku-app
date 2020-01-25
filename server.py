@@ -107,6 +107,8 @@ def close_case(org_id, record_id):
             'error': True
         })
 
+    logging.info('Case updated successfully.')
+
     return redirect(response.json()['redirect_url'], code=302)
 
 
