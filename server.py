@@ -55,4 +55,6 @@ def close_case(org_id, record_id):
 
 if not os.environ.get('IS_HEROKU', None and __name__ == '__main__'):
     logging.basicConfig(level=logging.INFO)
-    app.run(host='localhost', port='8080', debug=True)
+    app.run(host='localhost', port=8080, debug=True)
+
+app.run(host='localhost', port=5000, debug=False)
